@@ -24,7 +24,7 @@ docker compose up -d          # Postgres on 5433, Kafka (KRaft) on 9092
 mvn spring-boot:run
 ```
 
-The app runs on port **8083**. Flyway applies `V1__init.sql` automatically on startup
+The app runs on port **8086**. Flyway applies `V1__init.sql` automatically on startup
 (the schema from the docs, plus `participation_outbox`).
 
 Kafka topics (`participant.joined`, `participant.left`,
@@ -97,13 +97,3 @@ up real Postgres and Kafka via Testcontainers:
 
 These weren't run in the sandbox that generated this project (no network access to pull
 Docker images there) — run them locally as the real verification step.
-
-## Known gaps carried over from the design docs (§8)
-
-1. **Reserve-then-insert crash window** — `reserve-slot` succeeding but the local insert
-   never committing leaves a stuck slot in Deal Service with nothing referencing it.
-   Not fixed by the outbox (that only covers publish-after-commit); needs a Deal-Service
-   side reconciliation/timeout sweep.
-2. **Leave-flip-before-publish** — closed by the outbox pattern: the status flip and the
-   outbox row commit atomically, and `OutboxPoller` retries publish independently of the
-   request lifecycle.
