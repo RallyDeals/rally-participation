@@ -70,9 +70,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=real-deal-service
 
 Confirm the actual response shape of `GET /deals/{id}/summary` against Deal Service once
 it's built — `DealSummaryResponse` is currently just Participation Service's assumption
-of what it needs. Same caveat applies to `OrderDealOrderCancelledPayload` (the
-`order.deal_order_cancelled` consumer contract) — confirm against Order Service's actual
-published shape once it exists.
+of what it needs.
 
 ## Tests
 
@@ -94,6 +92,3 @@ up real Postgres and Kafka via Testcontainers:
   having even though it's slower).
 - `OutboxPollerIT` — writes an outbox row directly, runs the poller, and asserts the
   message actually lands on the real Kafka topic and the row gets marked published.
-
-These weren't run in the sandbox that generated this project (no network access to pull
-Docker images there) — run them locally as the real verification step.
