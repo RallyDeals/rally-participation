@@ -1,0 +1,5 @@
+# Created at 2026-08-13T15:36:50.695
+Boot Manifest-JAR contains absolute paths in classpath 'E:\rally final\participation-service\participation-service\target\test-classes'
+Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+'other' has different root
+

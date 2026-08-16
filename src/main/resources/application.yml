@@ -1,0 +1,65 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: participation-service
+  profiles:
+    active: real-deal-service   # switch to real-deal-service once Deal Service actually exists
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/participation_db
+    username: participation
+    password: participation
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # schema is owned by Flyway, not Hibernate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+    consumer:
+      group-id: participation-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+rally:
+  deal-service:
+    base-url: http://localhost:8085   # used by RealDealServiceClient (real-deal-service profile)
+    timeout-ms: 2000
+    retry:
+      max-attempts: 2
+      backoff-ms: 200
+    stub:
+      default-capacity: 5
+      default-min-participants: 3
+      default-end-time-days-from-now: 7
+  participation:
+    leave-cutoff-minutes: 10          # mirrors Deal Service's own cutoff, informational only here
+  outbox:
+    poll-interval-ms: 1000
+    batch-size: 100
+  kafka:
+    topics:
+      participant-joined: participant.joined
+      participant-left: participant.left
+      order-deal-order-cancelled: order.deal_order_cancelled
+
+logging:
+  level:
+    com.rally.participation: DEBUG

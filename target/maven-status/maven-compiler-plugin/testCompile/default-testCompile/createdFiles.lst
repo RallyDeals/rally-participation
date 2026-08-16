@@ -1,0 +1,6 @@
+com\rally\participation\integration\AbstractIntegrationTest.class
+com\rally\participation\client\RealDealServiceClientTest.class
+com\rally\participation\integration\OutboxPollerIT.class
+com\rally\participation\service\ParticipationServiceImplTest.class
+com\rally\participation\client\StubDealServiceClientTest.class
+com\rally\participation\integration\ParticipationRepositoryIT.class
