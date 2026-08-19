@@ -15,19 +15,11 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-/**
- * Real implementation of the sync contracts to Deal Service (docs §6). Inactive by
- * default - activate with spring.profiles.active=real-deal-service once Deal Service
- * exists and rally.deal-service.base-url points at it.
- *
- * Business errors (404/409) are propagated as our domain exceptions and are never
- * retried. Transient failures (timeout, connection refused, 5xx) get a small bounded
- * retry with backoff, then surface as DealServiceUnavailableException - we deliberately
- * never assume success on ambiguity (see docs §6 recommendation).
- */
 @Component
 @Profile("real-deal-service")
 public class RealDealServiceClient implements DealServiceClient {
@@ -51,27 +43,75 @@ public class RealDealServiceClient implements DealServiceClient {
 
     @Override
     public void reserveSlot(UUID dealId) {
-        post("/deals/" + dealId + "/reserve-slot", dealId,
-            () -> new DealNotJoinableException(dealId, "rejected by Deal Service"));
+        try {
+            Map<String, UUID> body = Map.of("requestId", UUID.randomUUID());
+            webClient.post()
+                .uri("/internal/deals/{dealId}/reserve-slot", dealId)
+                .bodyValue(body)
+                .retrieve()
+                .onStatus(status -> status.value() == 404, resp -> Mono.error(new DealNotFoundException(dealId)))
+                .onStatus(status -> status.value() == 409, resp -> Mono.error(new DealNotJoinableException(dealId, "rejected by Deal Service")))
+                .toBodilessEntity()
+                .timeout(timeout)
+                .retryWhen(Retry.backoff(maxRetryAttempts, retryBackoff).filter(this::isRetryable))
+                .block();
+        } catch (ParticipationApiException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Deal Service reserveSlot failed for dealId={}", dealId, e);
+            throw new DealServiceUnavailableException("Deal Service reserveSlot failed for deal " + dealId + ": " + e.getMessage());
+        }
     }
 
     @Override
     public void checkLeaveEligible(UUID dealId) {
-        post("/deals/" + dealId + "/check-leave-eligible", dealId,
-            () -> new LeaveNotEligibleException(dealId, "rejected by Deal Service"));
+        try {
+            LeaveEligibilityResponse response = webClient.get()
+                .uri("/internal/deals/{dealId}/check-leave-eligible", dealId)
+                .retrieve()
+                .onStatus(status -> status.value() == 404, resp -> Mono.error(new DealNotFoundException(dealId)))
+                .bodyToMono(LeaveEligibilityResponse.class)
+                .timeout(timeout)
+                .retryWhen(Retry.backoff(maxRetryAttempts, retryBackoff).filter(this::isRetryable))
+                .block();
+
+            if (response != null && !response.eligible()) {
+                throw new LeaveNotEligibleException(dealId, response.reason());
+            }
+        } catch (ParticipationApiException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Deal Service checkLeaveEligible failed for dealId={}", dealId, e);
+            throw new DealServiceUnavailableException("Deal Service checkLeaveEligible failed for deal " + dealId + ": " + e.getMessage());
+        }
     }
 
     @Override
     public DealSummaryResponse getDealSummary(UUID dealId) {
         try {
-            return webClient.get()
-                .uri("/deals/{dealId}/summary", dealId)
+            DealResponse dealResponse = webClient.get()
+                .uri("/deals/{dealId}", dealId)
                 .retrieve()
                 .onStatus(status -> status.value() == 404, resp -> Mono.error(new DealNotFoundException(dealId)))
-                .bodyToMono(DealSummaryResponse.class)
+                .bodyToMono(DealResponse.class)
                 .timeout(timeout)
                 .retryWhen(Retry.backoff(maxRetryAttempts, retryBackoff).filter(this::isRetryable))
                 .block();
+
+            if (dealResponse == null) {
+                throw new DealNotFoundException(dealId);
+            }
+
+            Instant endTime = dealResponse.endTime() != null ? dealResponse.endTime().toInstant() : null;
+
+            return new DealSummaryResponse(
+                dealResponse.id(),
+                dealResponse.status(),
+                dealResponse.minParticipants(),
+                dealResponse.dealStock(),
+                dealResponse.currentParticipants(),
+                endTime
+            );
         } catch (ParticipationApiException e) {
             throw e;
         } catch (Exception e) {
@@ -80,27 +120,7 @@ public class RealDealServiceClient implements DealServiceClient {
         }
     }
 
-    private void post(String path, UUID dealId, Supplier<ParticipationApiException> conflictSupplier) {
-        try {
-            webClient.post()
-                .uri(path)
-                .retrieve()
-                .onStatus(status -> status.value() == 404, resp -> Mono.error(new DealNotFoundException(dealId)))
-                .onStatus(status -> status.value() == 409, resp -> Mono.error(conflictSupplier.get()))
-                .toBodilessEntity()
-                .timeout(timeout)
-                .retryWhen(Retry.backoff(maxRetryAttempts, retryBackoff).filter(this::isRetryable))
-                .block();
-        } catch (ParticipationApiException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("Deal Service call failed: {}", path, e);
-            throw new DealServiceUnavailableException("Deal Service call failed: " + path + " - " + e.getMessage());
-        }
-    }
-
     private boolean isRetryable(Throwable throwable) {
-        // Business errors (404/409) are deliberate outcomes, not transient failures - never retry them.
         return !(throwable instanceof ParticipationApiException);
     }
 }

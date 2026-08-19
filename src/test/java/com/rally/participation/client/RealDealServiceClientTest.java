@@ -63,21 +63,54 @@ class RealDealServiceClientTest {
     }
 
     @Test
-    void checkLeaveEligible_409_throwsLeaveNotEligible() {
-        server.enqueue(new MockResponse().setResponseCode(409));
+    void checkLeaveEligible_notEligible_throwsLeaveNotEligible() {
+        String json = """
+            {
+              "eligible": false,
+              "dealId": "%s",
+              "reason": "TOO_CLOSE_TO_END_TIME"
+            }
+            """.formatted(dealId);
+        server.enqueue(new MockResponse().setResponseCode(200)
+            .setHeader("Content-Type", "application/json")
+            .setBody(json));
         assertThatThrownBy(() -> client.checkLeaveEligible(dealId)).isInstanceOf(LeaveNotEligibleException.class);
+    }
+
+    @Test
+    void checkLeaveEligible_eligible_doesNotThrow() {
+        String json = """
+            {
+              "eligible": true,
+              "dealId": "%s",
+              "reason": null
+            }
+            """.formatted(dealId);
+        server.enqueue(new MockResponse().setResponseCode(200)
+            .setHeader("Content-Type", "application/json")
+            .setBody(json));
+        assertThatCode(() -> client.checkLeaveEligible(dealId)).doesNotThrowAnyException();
     }
 
     @Test
     void getDealSummary_success_parsesBody() {
         String json = """
             {
-              "dealId": "%s",
-              "status": "ACTIVE",
+              "id": "%s",
+              "productId": "00000000-0000-0000-0000-000000000001",
+              "sellerId": "00000000-0000-0000-0000-000000000002",
+              "originalPrice": 100.00,
+              "dealPrice": 75.00,
+              "dealStock": 100,
+              "currentParticipants": 42,
+              "authorizedCount": 0,
               "minParticipants": 10,
-              "stockCap": 100,
-              "reservedCount": 42,
-              "endTime": "2026-12-01T00:00:00Z"
+              "status": "ACTIVE",
+              "startTime": null,
+              "durationMinutes": 1440,
+              "endTime": "2026-12-01T00:00:00Z",
+              "timeRemainingSeconds": 86400,
+              "createdAt": null
             }
             """.formatted(dealId);
         server.enqueue(new MockResponse().setResponseCode(200)
@@ -86,10 +119,11 @@ class RealDealServiceClientTest {
 
         DealSummaryResponse summary = client.getDealSummary(dealId);
 
-        assertThatCode(() -> {}).doesNotThrowAnyException();
         org.assertj.core.api.Assertions.assertThat(summary.dealId()).isEqualTo(dealId);
         org.assertj.core.api.Assertions.assertThat(summary.minParticipants()).isEqualTo(10);
         org.assertj.core.api.Assertions.assertThat(summary.stockCap()).isEqualTo(100);
+        org.assertj.core.api.Assertions.assertThat(summary.reservedCount()).isEqualTo(42);
+        org.assertj.core.api.Assertions.assertThat(summary.status()).isEqualTo("ACTIVE");
     }
 
     @Test
