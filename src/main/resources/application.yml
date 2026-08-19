@@ -1,21 +1,21 @@
 server:
-  port: 8086
+  port: ${SERVER_PORT:8086}
 
 spring:
   application:
     name: participation-service
   profiles:
-    active: real-deal-service   # switch to real-deal-service once Deal Service actually exists
+    active: real-deal-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/participation_db
-    username: participation
-    password: participation
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:participation_db}
+    username: ${DB_USER:participation}
+    password: ${DB_PASSWORD:participation}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: validate   # schema is owned by Flyway, not Hibernate
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:
@@ -27,7 +27,7 @@ spring:
     locations: classpath:db/migration
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -40,7 +40,7 @@ spring:
 
 rally:
   deal-service:
-    base-url: http://localhost:8085   # used by RealDealServiceClient (real-deal-service profile)
+    base-url: ${RALLY_DEAL_SERVICE_BASE_URL:http://localhost:8085}
     timeout-ms: 2000
     retry:
       max-attempts: 2
@@ -50,7 +50,7 @@ rally:
       default-min-participants: 3
       default-end-time-days-from-now: 7
   participation:
-    leave-cutoff-minutes: 10          # mirrors Deal Service's own cutoff, informational only here
+    leave-cutoff-minutes: 10
   outbox:
     poll-interval-ms: 1000
     batch-size: 100

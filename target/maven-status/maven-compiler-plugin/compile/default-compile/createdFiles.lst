@@ -16,6 +16,7 @@ com\rally\participation\config\KafkaTopicsProperties.class
 com\rally\participation\dto\ParticipantSummary.class
 com\rally\participation\exception\NotActiveParticipantException.class
 com\rally\participation\exception\ReferralCodeExpiredException.class
+com\rally\participation\dto\ActivityEvent.class
 com\rally\participation\web\ParticipationController.class
 com\rally\participation\event\OutboxPoller.class
 com\rally\participation\repository\ReferralLinkRepository.class

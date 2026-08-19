@@ -11,6 +11,7 @@ J:\Projects\Java\FaweryProject\rally-participation\src\main\java\com\rally\parti
 J:\Projects\Java\FaweryProject\rally-participation\src\main\java\com\rally\participation\domain\ParticipationOutbox.java
 J:\Projects\Java\FaweryProject\rally-participation\src\main\java\com\rally\participation\domain\ParticipationStatus.java
 J:\Projects\Java\FaweryProject\rally-participation\src\main\java\com\rally\participation\domain\ReferralLink.java
+J:\Projects\Java\FaweryProject\rally-participation\src\main\java\com\rally\participation\dto\ActivityEvent.java
 J:\Projects\Java\FaweryProject\rally-participation\src\main\java\com\rally\participation\dto\DealProgressResponse.java
 J:\Projects\Java\FaweryProject\rally-participation\src\main\java\com\rally\participation\dto\InviteResolutionResponse.java
 J:\Projects\Java\FaweryProject\rally-participation\src\main\java\com\rally\participation\dto\JoinRequest.java
