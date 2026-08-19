@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -45,5 +46,10 @@ public class ParticipationController {
     @GetMapping("/progress")
     public DealProgressResponse getProgress(@PathVariable UUID dealId) {
         return participationService.getProgress(dealId);
+    }
+
+    @GetMapping("/activity")
+    public List<ActivityEvent> getActivity(@PathVariable UUID dealId) {
+        return participationService.getActivity(dealId);
     }
 }

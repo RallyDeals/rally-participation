@@ -5,6 +5,7 @@ import com.rally.participation.client.DealSummaryResponse;
 import com.rally.participation.domain.Participation;
 import com.rally.participation.domain.ParticipationStatus;
 import com.rally.participation.domain.ReferralLink;
+import com.rally.participation.dto.ActivityEvent;
 import com.rally.participation.dto.DealProgressResponse;
 import com.rally.participation.dto.ParticipantSummary;
 import com.rally.participation.dto.ParticipantsPageResponse;
@@ -138,6 +139,21 @@ public class ParticipationServiceImpl implements ParticipationService {
             summary.endTime(),
             timeRemaining
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ActivityEvent> getActivity(UUID dealId) {
+        List<Participation> participations = participationRepository.findTop50ByDealIdOrderByJoinedAtDesc(dealId);
+        List<ActivityEvent> events = new java.util.ArrayList<>();
+        for (Participation p : participations) {
+            events.add(new ActivityEvent(p.getUserId(), "JOINED", p.getJoinedAt()));
+            if (p.getLeftAt() != null) {
+                events.add(new ActivityEvent(p.getUserId(), "LEFT", p.getLeftAt()));
+            }
+        }
+        events.sort((a, b) -> b.timestamp().compareTo(a.timestamp()));
+        return events;
     }
 
     private UUID resolveReferrer(UUID dealId, String referralCode) {

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,6 +23,8 @@ public interface ParticipationRepository extends JpaRepository<Participation, UU
     Page<Participation> findByDealId(UUID dealId, Pageable pageable);
 
     long countByDealIdAndStatus(UUID dealId, ParticipationStatus status);
+
+    List<Participation> findTop50ByDealIdOrderByJoinedAtDesc(UUID dealId);
 
     /**
      * Guarded flip used by the async order.deal_order_cancelled consumer (docs §5.3).
