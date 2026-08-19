@@ -101,7 +101,7 @@ class ParticipationServiceImplTest {
 
         verify(outboxEventWriter).write(
                 any(UUID.class),
-                eq("participant.joined"),
+                eq("Participant.Joined"),
                 any()
         );
     }
@@ -192,7 +192,7 @@ class ParticipationServiceImplTest {
         verify(dealServiceClient).checkLeaveEligible(dealId);
 
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(outboxEventWriter).write(eq(active.getId()), eq("participant.left"), payloadCaptor.capture());
+        verify(outboxEventWriter).write(eq(active.getId()), eq("Participant.Left"), payloadCaptor.capture());
     }
 
     @Test
