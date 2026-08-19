@@ -106,10 +106,12 @@ public class RealDealServiceClient implements DealServiceClient {
 
             return new DealSummaryResponse(
                 dealResponse.id(),
+                dealResponse.productId(),
                 dealResponse.status(),
                 dealResponse.minParticipants(),
                 dealResponse.dealStock(),
                 dealResponse.currentParticipants(),
+                dealResponse.dealPrice(),
                 endTime
             );
         } catch (ParticipationApiException e) {

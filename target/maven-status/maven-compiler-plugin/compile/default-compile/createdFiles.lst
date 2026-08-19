@@ -44,7 +44,9 @@ com\rally\participation\event\OrderDealOrderCancelledListener.class
 com\rally\participation\client\DealSummaryResponse.class
 com\rally\participation\event\OrderDealOrderCancelledPayload.class
 com\rally\participation\web\CurrentUser.class
+com\rally\participation\client\DealResponse.class
 com\rally\participation\repository\ParticipationOutboxRepository.class
 com\rally\participation\client\DealServiceClient.class
+com\rally\participation\client\LeaveEligibilityResponse.class
 com\rally\participation\event\ParticipantLeftPayload.class
 com\rally\participation\dto\ReferralLinkResponse.class

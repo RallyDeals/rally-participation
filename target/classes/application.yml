@@ -56,8 +56,7 @@ rally:
     batch-size: 100
   kafka:
     topics:
-      participant-joined: participant.joined
-      participant-left: participant.left
+      participation: participation
       order-deal-order-cancelled: order.deal_order_cancelled
 
 logging:

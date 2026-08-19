@@ -24,9 +24,8 @@ public class ParticipationController {
     @ResponseStatus(HttpStatus.CREATED)
     public ParticipationResponse join(@PathVariable UUID dealId,
                                        @CurrentUser UUID userId,
-                                       @Valid @RequestBody(required = false) JoinRequest request) {
-        String referralCode = request != null ? request.referralCode() : null;
-        return participationService.join(dealId, userId, referralCode);
+                                       @Valid @RequestBody JoinRequest request) {
+        return participationService.join(dealId, userId, request.referralCode(), request.paymentMethodId(), request.address());
     }
 
     @DeleteMapping("/leave")

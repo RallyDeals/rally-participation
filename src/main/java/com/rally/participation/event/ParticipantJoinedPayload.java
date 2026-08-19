@@ -1,13 +1,16 @@
 package com.rally.participation.event;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
 public record ParticipantJoinedPayload(
-    UUID eventId,
-    UUID participationId,
+    UUID participantId,
     UUID dealId,
     UUID userId,
-    UUID referredBy,
+    UUID productId,
+    BigDecimal price,
+    String paymentMethodId,
+    String address,
     Instant joinedAt
 ) {}

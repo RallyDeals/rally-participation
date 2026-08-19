@@ -47,12 +47,15 @@ public class ParticipationServiceImpl implements ParticipationService {
 
     @Override
     @Transactional
-    public ParticipationResponse join(UUID dealId, UUID userId, String referralCode) {
+    public ParticipationResponse join(UUID dealId, UUID userId, String referralCode, String paymentMethodId, String address) {
         UUID referredBy = resolveReferrer(dealId, referralCode);
 
         if (participationRepository.findByDealIdAndUserIdAndStatus(dealId, userId, ParticipationStatus.ACTIVE).isPresent()) {
             throw new AlreadyActiveParticipantException(dealId, userId);
         }
+
+        // Fetch deal info for productId and dealPrice BEFORE reserve call
+        DealSummaryResponse dealSummary = dealServiceClient.getDealSummary(dealId);
 
         // Sync gate call - see docs §6 and §8.1 for the crash-window risk this leaves open.
         dealServiceClient.reserveSlot(dealId);
@@ -61,16 +64,17 @@ public class ParticipationServiceImpl implements ParticipationService {
         try {
             participation = participationRepository.save(participation);
         } catch (DataIntegrityViolationException e) {
-            // Partial unique index race: another concurrent request won the join first.
             throw new AlreadyActiveParticipantException(dealId, userId);
         }
 
         ParticipantJoinedPayload payload = new ParticipantJoinedPayload(
-            UUID.randomUUID(),
             participation.getId(),
             participation.getDealId(),
             participation.getUserId(),
-            participation.getReferredBy(),
+            dealSummary.productId(),
+            dealSummary.dealPrice(),
+            paymentMethodId,
+            address,
             participation.getJoinedAt()
         );
         outboxEventWriter.write(participation.getId(), EventType.PARTICIPANT_JOINED, payload);

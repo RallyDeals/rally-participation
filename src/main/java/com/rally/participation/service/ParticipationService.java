@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface ParticipationService {
 
-    ParticipationResponse join(UUID dealId, UUID userId, String referralCode);
+    ParticipationResponse join(UUID dealId, UUID userId, String referralCode, String paymentMethodId, String address);
 
     void leave(UUID dealId, UUID userId);
 

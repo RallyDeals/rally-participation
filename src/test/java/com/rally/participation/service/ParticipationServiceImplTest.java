@@ -1,19 +1,16 @@
 package com.rally.participation.service;
 
 import com.rally.participation.client.DealServiceClient;
+import com.rally.participation.client.DealSummaryResponse;
 import com.rally.participation.domain.Participation;
 import com.rally.participation.domain.ParticipationStatus;
 import com.rally.participation.domain.ReferralLink;
 import com.rally.participation.dto.ParticipationResponse;
 import com.rally.participation.event.OutboxEventWriter;
-import com.rally.participation.exception.AlreadyActiveParticipantException;
-import com.rally.participation.exception.DealNotJoinableException;
-import com.rally.participation.exception.LeaveNotEligibleException;
-import com.rally.participation.exception.NotActiveParticipantException;
-import com.rally.participation.exception.ReferralCodeExpiredException;
-import com.rally.participation.exception.ReferralCodeNotFoundException;
+import com.rally.participation.exception.*;
 
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.time.Instant;
 import com.rally.participation.repository.ParticipationRepository;
 import com.rally.participation.repository.ReferralLinkRepository;
@@ -50,53 +47,39 @@ class ParticipationServiceImplTest {
 
     private final UUID dealId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
+    private final UUID productId = UUID.randomUUID();
+
+    private DealSummaryResponse stubDealSummary() {
+        return new DealSummaryResponse(dealId, productId, "ACTIVE", 10, 100, 0, BigDecimal.valueOf(49.99), Instant.now().plusSeconds(86400));
+    }
 
     @BeforeEach
     void setUp() {
         service = new ParticipationServiceImpl(participationRepository, referralLinkRepository, dealServiceClient, outboxEventWriter);
     }
 
-    /*@Test
-    void join_success_reservesSlotInsertsRowAndWritesOutboxEvent() {
-        when(participationRepository.findByDealIdAndUserIdAndStatus(dealId, userId, ParticipationStatus.ACTIVE))
-            .thenReturn(Optional.empty());
-        when(participationRepository.save(any(Participation.class)))
-            .thenAnswer(inv -> inv.getArgument(0));
-
-        ParticipationResponse response = service.join(dealId, userId, null);
-
-        assertThat(response.dealId()).isEqualTo(dealId);
-        assertThat(response.userId()).isEqualTo(userId);
-        assertThat(response.status()).isEqualTo("ACTIVE");
-
-        verify(dealServiceClient).reserveSlot(dealId);
-        verify(outboxEventWriter).write(any(UUID.class), eq("participant.joined"), any());
-    }*/
     @Test
     void join_success_reservesSlotInsertsRowAndWritesOutboxEvent() throws Exception {
-        when(participationRepository.findByDealIdAndUserIdAndStatus(
-                dealId,
-                userId,
-                ParticipationStatus.ACTIVE
-        )).thenReturn(Optional.empty());
+        when(participationRepository.findByDealIdAndUserIdAndStatus(dealId, userId, ParticipationStatus.ACTIVE))
+            .thenReturn(Optional.empty());
+        when(dealServiceClient.getDealSummary(dealId)).thenReturn(stubDealSummary());
 
         when(participationRepository.save(any(Participation.class)))
                 .thenAnswer(invocation -> {
                     Participation participation = invocation.getArgument(0);
-
                     Field idField = Participation.class.getDeclaredField("id");
                     idField.setAccessible(true);
                     idField.set(participation, UUID.randomUUID());
-
                     return participation;
                 });
 
-        ParticipationResponse response = service.join(dealId, userId, null);
+        ParticipationResponse response = service.join(dealId, userId, null, "pm_123", "123 Main St");
 
         assertThat(response.dealId()).isEqualTo(dealId);
         assertThat(response.userId()).isEqualTo(userId);
         assertThat(response.status()).isEqualTo("ACTIVE");
 
+        verify(dealServiceClient).getDealSummary(dealId);
         verify(dealServiceClient).reserveSlot(dealId);
 
         verify(outboxEventWriter).write(
@@ -107,11 +90,36 @@ class ParticipationServiceImplTest {
     }
 
     @Test
+    void join_enrichedPayload_containsProductIdAndPriceAndPaymentDetails() throws Exception {
+        when(participationRepository.findByDealIdAndUserIdAndStatus(dealId, userId, ParticipationStatus.ACTIVE))
+            .thenReturn(Optional.empty());
+        when(dealServiceClient.getDealSummary(dealId)).thenReturn(stubDealSummary());
+        when(participationRepository.save(any(Participation.class)))
+            .thenAnswer(inv -> {
+                Participation p = inv.getArgument(0);
+                Field idField = Participation.class.getDeclaredField("id");
+                idField.setAccessible(true);
+                idField.set(p, UUID.randomUUID());
+                return p;
+            });
+
+        service.join(dealId, userId, null, "pm_abc", "456 Oak Ave");
+
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(outboxEventWriter).write(any(UUID.class), eq("Participant.Joined"), captor.capture());
+        var payload = (com.rally.participation.event.ParticipantJoinedPayload) captor.getValue();
+        assertThat(payload.productId()).isEqualTo(productId);
+        assertThat(payload.price()).isEqualByComparingTo(BigDecimal.valueOf(49.99));
+        assertThat(payload.paymentMethodId()).isEqualTo("pm_abc");
+        assertThat(payload.address()).isEqualTo("456 Oak Ave");
+    }
+
+    @Test
     void join_alreadyActiveParticipant_throwsWithoutCallingDealService() {
         when(participationRepository.findByDealIdAndUserIdAndStatus(dealId, userId, ParticipationStatus.ACTIVE))
             .thenReturn(Optional.of(new Participation(dealId, userId, null)));
 
-        assertThatThrownBy(() -> service.join(dealId, userId, null))
+        assertThatThrownBy(() -> service.join(dealId, userId, null, "pm_1", "addr"))
             .isInstanceOf(AlreadyActiveParticipantException.class);
 
         verifyNoInteractions(dealServiceClient);
@@ -122,9 +130,10 @@ class ParticipationServiceImplTest {
     void join_dealServiceRejectsCapacity_throwsAndNeverInsertsRow() {
         when(participationRepository.findByDealIdAndUserIdAndStatus(dealId, userId, ParticipationStatus.ACTIVE))
             .thenReturn(Optional.empty());
+        when(dealServiceClient.getDealSummary(dealId)).thenReturn(stubDealSummary());
         doThrow(new DealNotJoinableException(dealId, "full")).when(dealServiceClient).reserveSlot(dealId);
 
-        assertThatThrownBy(() -> service.join(dealId, userId, null))
+        assertThatThrownBy(() -> service.join(dealId, userId, null, "pm_1", "addr"))
             .isInstanceOf(DealNotJoinableException.class);
 
         verify(participationRepository, never()).save(any());
@@ -135,10 +144,11 @@ class ParticipationServiceImplTest {
     void join_concurrentRaceOnUniqueIndex_translatesToAlreadyActiveException() {
         when(participationRepository.findByDealIdAndUserIdAndStatus(dealId, userId, ParticipationStatus.ACTIVE))
             .thenReturn(Optional.empty());
+        when(dealServiceClient.getDealSummary(dealId)).thenReturn(stubDealSummary());
         when(participationRepository.save(any(Participation.class)))
             .thenThrow(new DataIntegrityViolationException("duplicate key"));
 
-        assertThatThrownBy(() -> service.join(dealId, userId, null))
+        assertThatThrownBy(() -> service.join(dealId, userId, null, "pm_1", "addr"))
             .isInstanceOf(AlreadyActiveParticipantException.class);
     }
 
@@ -150,9 +160,10 @@ class ParticipationServiceImplTest {
         when(referralLinkRepository.findById("aB3xQ9zK")).thenReturn(Optional.of(link));
         when(participationRepository.findByDealIdAndUserIdAndStatus(dealId, userId, ParticipationStatus.ACTIVE))
             .thenReturn(Optional.empty());
+        when(dealServiceClient.getDealSummary(dealId)).thenReturn(stubDealSummary());
         when(participationRepository.save(any(Participation.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ParticipationResponse response = service.join(dealId, userId, "aB3xQ9zK");
+        ParticipationResponse response = service.join(dealId, userId, "aB3xQ9zK", "pm_1", "addr");
 
         assertThat(response.referredBy()).isEqualTo(referrerId);
     }
@@ -162,7 +173,7 @@ class ParticipationServiceImplTest {
         ReferralLink expiredLink = new ReferralLink("expired1", dealId, UUID.randomUUID(), Instant.now().minusSeconds(60));
         when(referralLinkRepository.findById("expired1")).thenReturn(Optional.of(expiredLink));
 
-        assertThatThrownBy(() -> service.join(dealId, userId, "expired1"))
+        assertThatThrownBy(() -> service.join(dealId, userId, "expired1", "pm_1", "addr"))
             .isInstanceOf(ReferralCodeExpiredException.class);
 
         verifyNoInteractions(dealServiceClient);
@@ -174,7 +185,7 @@ class ParticipationServiceImplTest {
         ReferralLink link = new ReferralLink("wrongdeal", otherDealId, UUID.randomUUID(), null);
         when(referralLinkRepository.findById("wrongdeal")).thenReturn(Optional.of(link));
 
-        assertThatThrownBy(() -> service.join(dealId, userId, "wrongdeal"))
+        assertThatThrownBy(() -> service.join(dealId, userId, "wrongdeal", "pm_1", "addr"))
             .isInstanceOf(ReferralCodeNotFoundException.class);
     }
 
@@ -225,7 +236,7 @@ class ParticipationServiceImplTest {
         when(participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.ACTIVE)).thenReturn(42L);
         java.time.Instant endTime = java.time.Instant.now().plusSeconds(3600);
         when(dealServiceClient.getDealSummary(dealId))
-            .thenReturn(new com.rally.participation.client.DealSummaryResponse(dealId, "ACTIVE", 10, 100, 42, endTime));
+            .thenReturn(new DealSummaryResponse(dealId, productId, "ACTIVE", 10, 100, 42, BigDecimal.valueOf(29.99), endTime));
 
         var progress = service.getProgress(dealId);
 
@@ -242,7 +253,7 @@ class ParticipationServiceImplTest {
         when(participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.ACTIVE)).thenReturn(5L);
         java.time.Instant pastEndTime = java.time.Instant.now().minusSeconds(60);
         when(dealServiceClient.getDealSummary(dealId))
-            .thenReturn(new com.rally.participation.client.DealSummaryResponse(dealId, "EXPIRED", 10, 100, 5, pastEndTime));
+            .thenReturn(new DealSummaryResponse(dealId, productId, "EXPIRED", 10, 100, 5, BigDecimal.valueOf(29.99), pastEndTime));
 
         var progress = service.getProgress(dealId);
 
