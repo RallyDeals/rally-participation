@@ -96,12 +96,8 @@ public class ParticipationServiceImpl implements ParticipationService {
         participationRepository.save(participation);
 
         ParticipantLeftPayload payload = new ParticipantLeftPayload(
-            UUID.randomUUID(),
             participation.getId(),
-            participation.getDealId(),
-            participation.getUserId(),
-            participation.getLeftAt(),
-            "SELF_INITIATED"
+            participation.getDealId()
         );
         outboxEventWriter.write(participation.getId(), EventType.PARTICIPANT_LEFT, payload);
     }
