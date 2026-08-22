@@ -17,6 +17,8 @@ public interface ParticipationService {
 
     ParticipantsPageResponse listParticipants(UUID dealId, boolean activeOnly, Pageable pageable);
 
+    boolean isActiveParticipant(UUID dealId, UUID participantId);
+
     DealProgressResponse getProgress(UUID dealId);
 
     List<ActivityEvent> getActivity(UUID dealId);

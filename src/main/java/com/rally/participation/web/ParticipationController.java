@@ -43,6 +43,12 @@ public class ParticipationController {
         return participationService.listParticipants(dealId, activeOnly, PageRequest.of(page, size));
     }
 
+    @GetMapping("/participants/{participantId}")
+    public boolean isActiveParticipant(@PathVariable UUID dealId,
+                                          @PathVariable UUID participantId) {
+        return participationService.isActiveParticipant(dealId, participantId);
+    }
+
     @GetMapping("/progress")
     public DealProgressResponse getProgress(@PathVariable UUID dealId) {
         return participationService.getProgress(dealId);

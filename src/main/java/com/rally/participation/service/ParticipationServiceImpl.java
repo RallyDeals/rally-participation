@@ -121,6 +121,12 @@ public class ParticipationServiceImpl implements ParticipationService {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean isActiveParticipant(UUID dealId, UUID participationId) {
+       return participationRepository.existsByDealIdAndIdAndStatus(dealId, participationId, ParticipationStatus.ACTIVE);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public DealProgressResponse getProgress(UUID dealId) {
         long activeCount = participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.ACTIVE);
         DealSummaryResponse summary = dealServiceClient.getDealSummary(dealId);
@@ -147,6 +153,10 @@ public class ParticipationServiceImpl implements ParticipationService {
         List<Participation> participations = participationRepository.findTop50ByDealIdOrderByJoinedAtDesc(dealId);
         List<ActivityEvent> events = new java.util.ArrayList<>();
         for (Participation p : participations) {
+            if(p.getStatus().equals(ParticipationStatus.PENDING)) {
+                events.add(new ActivityEvent(p.getUserId(), "PENDING", p.getJoinedAt()));
+                continue;
+            }
             events.add(new ActivityEvent(p.getUserId(), "JOINED", p.getJoinedAt()));
             if (p.getLeftAt() != null) {
                 events.add(new ActivityEvent(p.getUserId(), "LEFT", p.getLeftAt()));
