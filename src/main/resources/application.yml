@@ -57,7 +57,7 @@ rally:
   kafka:
     topics:
       participation: participation
-      order-deal-order-cancelled: order.deal_order_cancelled
+      order-events: order.lifecycle_events
 
 logging:
   level:

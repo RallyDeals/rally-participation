@@ -26,6 +26,17 @@ public interface ParticipationRepository extends JpaRepository<Participation, UU
 
     List<Participation> findTop50ByDealIdOrderByJoinedAtDesc(UUID dealId);
 
+    boolean existsByDealIdAndIdAndStatus(UUID dealId, UUID participantId, ParticipationStatus status);
+
+    /**
+     * Guarded flip used by the async order.deal_order_cancelled consumer (docs §5.3).
+     * Only affects rows still ACTIVE, making redelivery idempotent.
+     */
+    @Modifying
+    @Query("UPDATE Participation p SET p.status = 'ACTIVE' " +
+            "WHERE p.dealId = :dealId AND p.userId = :userId AND p.status = 'PENDING'")
+    int flipToActiveIfPending(@Param("dealId") UUID dealId, @Param("userId") UUID userId);
+
     /**
      * Guarded flip used by the async order.deal_order_cancelled consumer (docs §5.3).
      * Only affects rows still ACTIVE, making redelivery idempotent.

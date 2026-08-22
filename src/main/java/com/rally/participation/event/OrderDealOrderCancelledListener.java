@@ -5,6 +5,7 @@ import com.rally.participation.repository.ParticipationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,9 +31,13 @@ public class OrderDealOrderCancelledListener {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "${rally.kafka.topics.order-deal-order-cancelled}")
+    @KafkaListener(topics = "${rally.kafka.topics.order-events}")
     @Transactional
-    public void onOrderDealOrderCancelled(String message) {
+    public void onOrderDealOrderCancelled(@Header(value = "X-Type", required = false) String eventType, String message) {
+        if (!EventType.ORDER_DEAL_CANCELLED.equals(eventType)) {
+            log.debug("Ignoring order.lifecycle_events message with X-Type={} (not {})", eventType, EventType.ORDER_DEAL_CANCELLED);
+            return;
+        }
         try {
             OrderDealOrderCancelledPayload payload = objectMapper.readValue(message, OrderDealOrderCancelledPayload.class);
             int updated = participationRepository.flipToLeftIfActive(payload.dealId(), payload.userId(), Instant.now());

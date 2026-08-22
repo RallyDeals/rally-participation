@@ -16,9 +16,7 @@ import reactor.util.retry.Retry;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
-import java.util.function.Supplier;
 
 @Component
 @Profile("real-deal-service")
@@ -44,10 +42,10 @@ public class RealDealServiceClient implements DealServiceClient {
     @Override
     public void reserveSlot(UUID dealId) {
         try {
-            Map<String, UUID> body = Map.of("requestId", UUID.randomUUID());
+            UUID requestId = UUID.randomUUID();
             webClient.post()
                 .uri("/internal/deals/{dealId}/reserve-slot", dealId)
-                .bodyValue(body)
+                .header("requestId", requestId.toString())
                 .retrieve()
                 .onStatus(status -> status.value() == 404, resp -> Mono.error(new DealNotFoundException(dealId)))
                 .onStatus(status -> status.value() == 409, resp -> Mono.error(new DealNotJoinableException(dealId, "rejected by Deal Service")))
