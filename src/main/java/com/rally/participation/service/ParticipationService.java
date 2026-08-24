@@ -1,5 +1,6 @@
 package com.rally.participation.service;
 
+import com.rally.participation.domain.ParticipationStatus;
 import com.rally.participation.dto.ActivityEvent;
 import com.rally.participation.dto.DealProgressResponse;
 import com.rally.participation.dto.ParticipantsPageResponse;
@@ -17,7 +18,7 @@ public interface ParticipationService {
 
     ParticipantsPageResponse listParticipants(UUID dealId, boolean activeOnly, Pageable pageable);
 
-    boolean isActiveParticipant(UUID dealId, UUID participantId);
+    ParticipationStatus getParticipantStatus(UUID dealId, UUID participantId);
 
     DealProgressResponse getProgress(UUID dealId);
 

@@ -232,6 +232,50 @@ class ParticipationServiceImplTest {
     }
 
     @Test
+    void getParticipantStatus_declinedParticipation_returnsDeclined() {
+        UUID participationId = UUID.randomUUID();
+        Participation declined = new Participation(dealId, userId, null);
+        setStatus(declined, ParticipationStatus.DECLINED);
+        when(participationRepository.findByDealIdAndId(dealId, participationId))
+            .thenReturn(Optional.of(declined));
+
+        assertThat(service.getParticipantStatus(dealId, participationId)).isEqualTo(ParticipationStatus.DECLINED);
+    }
+
+    @Test
+    void getParticipantStatus_unknownParticipant_throwsNotFound() {
+        UUID participationId = UUID.randomUUID();
+        when(participationRepository.findByDealIdAndId(dealId, participationId))
+            .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getParticipantStatus(dealId, participationId))
+            .isInstanceOf(ParticipantNotFoundException.class);
+    }
+
+    private static void setStatus(Participation participation, ParticipationStatus status) throws RuntimeException {
+        try {
+            Field statusField = Participation.class.getDeclaredField("status");
+            statusField.setAccessible(true);
+            statusField.set(participation, status);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void getActivity_declinedParticipation_reportsDeclinedNotJoined() {
+        Participation declined = new Participation(dealId, userId, null);
+        setStatus(declined, ParticipationStatus.DECLINED);
+        when(participationRepository.findTop50ByDealIdOrderByJoinedAtDesc(dealId))
+            .thenReturn(java.util.List.of(declined));
+
+        var events = service.getActivity(dealId);
+
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).type()).isEqualTo("DECLINED");
+    }
+
+    @Test
     void getProgress_combinesLocalCountWithDealServiceSummary() {
         when(participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.ACTIVE)).thenReturn(42L);
         java.time.Instant endTime = java.time.Instant.now().plusSeconds(3600);

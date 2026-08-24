@@ -121,8 +121,10 @@ public class ParticipationServiceImpl implements ParticipationService {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isActiveParticipant(UUID dealId, UUID participationId) {
-       return participationRepository.existsByDealIdAndIdAndStatus(dealId, participationId, ParticipationStatus.ACTIVE);
+    public ParticipationStatus getParticipantStatus(UUID dealId, UUID participationId) {
+        return participationRepository.findByDealIdAndId(dealId, participationId)
+            .map(Participation::getStatus)
+            .orElseThrow(() -> new ParticipantNotFoundException(dealId, participationId));
     }
 
     @Override
@@ -153,8 +155,12 @@ public class ParticipationServiceImpl implements ParticipationService {
         List<Participation> participations = participationRepository.findTop50ByDealIdOrderByJoinedAtDesc(dealId);
         List<ActivityEvent> events = new java.util.ArrayList<>();
         for (Participation p : participations) {
-            if(p.getStatus().equals(ParticipationStatus.PENDING)) {
+            if (p.getStatus().equals(ParticipationStatus.PENDING)) {
                 events.add(new ActivityEvent(p.getUserId(), "PENDING", p.getJoinedAt()));
+                continue;
+            }
+            if (p.getStatus().equals(ParticipationStatus.DECLINED)) {
+                events.add(new ActivityEvent(p.getUserId(), "DECLINED", p.getJoinedAt()));
                 continue;
             }
             events.add(new ActivityEvent(p.getUserId(), "JOINED", p.getJoinedAt()));
