@@ -28,6 +28,8 @@ public interface ParticipationRepository extends JpaRepository<Participation, UU
 
     boolean existsByDealIdAndIdAndStatus(UUID dealId, UUID participantId, ParticipationStatus status);
 
+    Optional<Participation> findByDealIdAndId(UUID dealId, UUID id);
+
     /**
      * Guarded flip used by the async order.deal_order_cancelled consumer (docs §5.3).
      * Only affects rows still ACTIVE, making redelivery idempotent.
@@ -39,10 +41,21 @@ public interface ParticipationRepository extends JpaRepository<Participation, UU
 
     /**
      * Guarded flip used by the async order.deal_order_cancelled consumer (docs §5.3).
-     * Only affects rows still ACTIVE, making redelivery idempotent.
+     * Only affects rows still ACTIVE, making redelivery idempotent. Covers cancellation
+     * arriving after the participant had already joined (e.g. the deal itself failed).
      */
     @Modifying
     @Query("UPDATE Participation p SET p.status = 'LEFT', p.leftAt = :leftAt " +
            "WHERE p.dealId = :dealId AND p.userId = :userId AND p.status = 'ACTIVE'")
     int flipToLeftIfActive(@Param("dealId") UUID dealId, @Param("userId") UUID userId, @Param("leftAt") Instant leftAt);
+
+    /**
+     * Guarded flip used by the async order.deal_order_cancelled consumer (docs §5.3).
+     * Only affects rows still PENDING, making redelivery idempotent. Covers cancellation
+     * arriving before authorization completed (e.g. payment declined).
+     */
+    @Modifying
+    @Query("UPDATE Participation p SET p.status = 'DECLINED' " +
+           "WHERE p.dealId = :dealId AND p.userId = :userId AND p.status = 'PENDING'")
+    int flipToDeclinedIfPending(@Param("dealId") UUID dealId, @Param("userId") UUID userId);
 }
