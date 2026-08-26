@@ -58,4 +58,8 @@ public interface ParticipationRepository extends JpaRepository<Participation, UU
     @Query("UPDATE Participation p SET p.status = 'DECLINED' " +
            "WHERE p.dealId = :dealId AND p.userId = :userId AND p.status = 'PENDING'")
     int flipToDeclinedIfPending(@Param("dealId") UUID dealId, @Param("userId") UUID userId);
+
+    Page<Participation> findAllByUserIdAndStatus(UUID userId, ParticipationStatus status, Pageable pageable);
+    Page<Participation> findAllByUserId(UUID userId, Pageable pageable);
+
 }
