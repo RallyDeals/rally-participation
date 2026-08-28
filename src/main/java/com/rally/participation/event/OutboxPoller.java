@@ -3,6 +3,8 @@ package com.rally.participation.event;
 import com.rally.participation.config.KafkaTopicsProperties;
 import com.rally.participation.domain.ParticipationOutbox;
 import com.rally.participation.repository.ParticipationOutboxRepository;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,17 +14,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
-/**
- * Polls participation_outbox for unpublished rows and pushes them to Kafka, then marks
- * them published. Decouples "the DB write committed" from "Kafka publish succeeded" so a
- * crash between those two steps just means the poller catches up on next run instead of
- * silently losing the event (docs §8.1, §8.2).
- *
- * Keyed by aggregateId (participation id) so Kafka partitioning preserves per-participation
- * ordering.
- */
 @Component
 public class OutboxPoller {
 
@@ -50,24 +45,24 @@ public class OutboxPoller {
             outboxRepository.findByPublishedAtIsNullOrderByCreatedAtAsc(PageRequest.of(0, batchSize));
 
         for (ParticipationOutbox row : pending) {
-            String topic = resolveTopic(row.getEventType());
             try {
-                kafkaTemplate.send(topic, row.getAggregateId().toString(), row.getPayload()).get();
+                String topic = topics.getParticipation();
+                String key = row.getAggregateId().toString();
+                String eventType = row.getEventType();
+
+                ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, row.getPayload());
+                record.headers().add(new RecordHeader("X-Id", row.getId().toString().getBytes(StandardCharsets.UTF_8)));
+                record.headers().add(new RecordHeader("X-Type", eventType.getBytes(StandardCharsets.UTF_8)));
+                record.headers().add(new RecordHeader("X-Correlation-Id", row.getAggregateId().toString().getBytes(StandardCharsets.UTF_8)));
+                record.headers().add(new RecordHeader("X-Causation-Id", row.getAggregateId().toString().getBytes(StandardCharsets.UTF_8)));
+                record.headers().add(new RecordHeader("X-Trace-Id", UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)));
+
+                kafkaTemplate.send(record).get();
                 row.markPublished();
             } catch (Exception e) {
                 log.error("Failed to publish outbox row id={} eventType={} - will retry next poll",
                     row.getId(), row.getEventType(), e);
-                // leave unpublished; next poll retries. Delivery is at-least-once by design,
-                // so downstream consumers (Order Service etc.) must be idempotent.
             }
         }
-    }
-
-    private String resolveTopic(String eventType) {
-        return switch (eventType) {
-            case EventType.PARTICIPANT_JOINED -> topics.getParticipantJoined();
-            case EventType.PARTICIPANT_LEFT -> topics.getParticipantLeft();
-            default -> throw new IllegalStateException("Unknown outbox event type: " + eventType);
-        };
     }
 }

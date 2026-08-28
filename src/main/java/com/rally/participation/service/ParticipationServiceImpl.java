@@ -5,6 +5,7 @@ import com.rally.participation.client.DealSummaryResponse;
 import com.rally.participation.domain.Participation;
 import com.rally.participation.domain.ParticipationStatus;
 import com.rally.participation.domain.ReferralLink;
+import com.rally.participation.dto.ActivityEvent;
 import com.rally.participation.dto.DealProgressResponse;
 import com.rally.participation.dto.ParticipantSummary;
 import com.rally.participation.dto.ParticipantsPageResponse;
@@ -47,12 +48,15 @@ public class ParticipationServiceImpl implements ParticipationService {
 
     @Override
     @Transactional
-    public ParticipationResponse join(UUID dealId, UUID userId, String referralCode) {
+    public ParticipationResponse join(UUID dealId, UUID userId, String referralCode, String paymentMethodId, String address) {
         UUID referredBy = resolveReferrer(dealId, referralCode);
 
         if (participationRepository.findByDealIdAndUserIdAndStatus(dealId, userId, ParticipationStatus.ACTIVE).isPresent()) {
             throw new AlreadyActiveParticipantException(dealId, userId);
         }
+
+        // Fetch deal info for productId and dealPrice BEFORE reserve call
+        DealSummaryResponse dealSummary = dealServiceClient.getDealSummary(dealId);
 
         // Sync gate call - see docs §6 and §8.1 for the crash-window risk this leaves open.
         dealServiceClient.reserveSlot(dealId);
@@ -61,16 +65,17 @@ public class ParticipationServiceImpl implements ParticipationService {
         try {
             participation = participationRepository.save(participation);
         } catch (DataIntegrityViolationException e) {
-            // Partial unique index race: another concurrent request won the join first.
             throw new AlreadyActiveParticipantException(dealId, userId);
         }
 
         ParticipantJoinedPayload payload = new ParticipantJoinedPayload(
-            UUID.randomUUID(),
             participation.getId(),
             participation.getDealId(),
             participation.getUserId(),
-            participation.getReferredBy(),
+            dealSummary.productId(),
+            dealSummary.dealPrice(),
+            paymentMethodId,
+            address,
             participation.getJoinedAt()
         );
         outboxEventWriter.write(participation.getId(), EventType.PARTICIPANT_JOINED, payload);
@@ -92,12 +97,8 @@ public class ParticipationServiceImpl implements ParticipationService {
         participationRepository.save(participation);
 
         ParticipantLeftPayload payload = new ParticipantLeftPayload(
-            UUID.randomUUID(),
             participation.getId(),
-            participation.getDealId(),
-            participation.getUserId(),
-            participation.getLeftAt(),
-            "SELF_INITIATED"
+            participation.getDealId()
         );
         outboxEventWriter.write(participation.getId(), EventType.PARTICIPANT_LEFT, payload);
     }
@@ -120,6 +121,14 @@ public class ParticipationServiceImpl implements ParticipationService {
 
     @Override
     @Transactional(readOnly = true)
+    public ParticipationStatus getParticipantStatus(UUID dealId, UUID participationId) {
+        return participationRepository.findByDealIdAndId(dealId, participationId)
+            .map(Participation::getStatus)
+            .orElseThrow(() -> new ParticipantNotFoundException(dealId, participationId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public DealProgressResponse getProgress(UUID dealId) {
         long activeCount = participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.ACTIVE);
         DealSummaryResponse summary = dealServiceClient.getDealSummary(dealId);
@@ -138,6 +147,29 @@ public class ParticipationServiceImpl implements ParticipationService {
             summary.endTime(),
             timeRemaining
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ActivityEvent> getActivity(UUID dealId) {
+        List<Participation> participations = participationRepository.findTop50ByDealIdOrderByJoinedAtDesc(dealId);
+        List<ActivityEvent> events = new java.util.ArrayList<>();
+        for (Participation p : participations) {
+            if (p.getStatus().equals(ParticipationStatus.PENDING)) {
+                events.add(new ActivityEvent(p.getUserId(), "PENDING", p.getJoinedAt()));
+                continue;
+            }
+            if (p.getStatus().equals(ParticipationStatus.DECLINED)) {
+                events.add(new ActivityEvent(p.getUserId(), "DECLINED", p.getJoinedAt()));
+                continue;
+            }
+            events.add(new ActivityEvent(p.getUserId(), "JOINED", p.getJoinedAt()));
+            if (p.getLeftAt() != null) {
+                events.add(new ActivityEvent(p.getUserId(), "LEFT", p.getLeftAt()));
+            }
+        }
+        events.sort((a, b) -> b.timestamp().compareTo(a.timestamp()));
+        return events;
     }
 
     private UUID resolveReferrer(UUID dealId, String referralCode) {

@@ -5,24 +5,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "rally.kafka.topics")
 public class KafkaTopicsProperties {
 
-    private String participantJoined;
-    private String participantLeft;
+    private String participation;
     private String orderDealOrderCancelled;
 
-    public String getParticipantJoined() {
-        return participantJoined;
+    public String getParticipation() {
+        return participation;
     }
 
-    public void setParticipantJoined(String participantJoined) {
-        this.participantJoined = participantJoined;
-    }
-
-    public String getParticipantLeft() {
-        return participantLeft;
-    }
-
-    public void setParticipantLeft(String participantLeft) {
-        this.participantLeft = participantLeft;
+    public void setParticipation(String participation) {
+        this.participation = participation;
     }
 
     public String getOrderDealOrderCancelled() {

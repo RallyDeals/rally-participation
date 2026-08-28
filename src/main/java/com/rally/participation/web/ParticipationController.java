@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -24,9 +25,8 @@ public class ParticipationController {
     @ResponseStatus(HttpStatus.CREATED)
     public ParticipationResponse join(@PathVariable UUID dealId,
                                        @CurrentUser UUID userId,
-                                       @Valid @RequestBody(required = false) JoinRequest request) {
-        String referralCode = request != null ? request.referralCode() : null;
-        return participationService.join(dealId, userId, referralCode);
+                                       @Valid @RequestBody JoinRequest request) {
+        return participationService.join(dealId, userId, request.referralCode(), request.paymentMethodId(), request.address());
     }
 
     @DeleteMapping("/leave")
@@ -43,8 +43,19 @@ public class ParticipationController {
         return participationService.listParticipants(dealId, activeOnly, PageRequest.of(page, size));
     }
 
+    @GetMapping("/participants/{participantId}")
+    public ParticipantStatusResponse getParticipantStatus(@PathVariable UUID dealId,
+                                                            @PathVariable UUID participantId) {
+        return ParticipantStatusResponse.from(participationService.getParticipantStatus(dealId, participantId));
+    }
+
     @GetMapping("/progress")
     public DealProgressResponse getProgress(@PathVariable UUID dealId) {
         return participationService.getProgress(dealId);
+    }
+
+    @GetMapping("/activity")
+    public List<ActivityEvent> getActivity(@PathVariable UUID dealId) {
+        return participationService.getActivity(dealId);
     }
 }

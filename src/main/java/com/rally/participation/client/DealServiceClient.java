@@ -12,7 +12,7 @@ import java.util.UUID;
 public interface DealServiceClient {
 
     /**
-     * Calls POST /deals/{dealId}/reserve-slot.
+     * Calls POST /internal/deals/{dealId}/reserve-slot with a SlotRequest body.
      * Throws DealNotFoundException if the deal doesn't exist,
      * DealNotJoinableException if the deal is full or not in a joinable state,
      * DealServiceUnavailableException if the call couldn't be completed at all.
@@ -20,7 +20,7 @@ public interface DealServiceClient {
     void reserveSlot(UUID dealId);
 
     /**
-     * Calls POST /deals/{dealId}/check-leave-eligible.
+     * Calls GET /internal/deals/{dealId}/check-leave-eligible.
      * Throws DealNotFoundException if the deal doesn't exist,
      * LeaveNotEligibleException if the deal isn't active/pending or is inside the cutoff window,
      * DealServiceUnavailableException if the call couldn't be completed at all.
@@ -28,7 +28,8 @@ public interface DealServiceClient {
     void checkLeaveEligible(UUID dealId);
 
     /**
-     * Calls GET /deals/{dealId}/summary. Read-only; used by the progress endpoint.
+     * Calls GET /deals/{dealId} and maps the response to DealSummaryResponse.
+     * Used by the progress endpoint.
      * Throws DealNotFoundException if the deal doesn't exist,
      * DealServiceUnavailableException if the call couldn't be completed at all.
      */

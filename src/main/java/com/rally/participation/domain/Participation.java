@@ -40,7 +40,7 @@ public class Participation {
         this.dealId = dealId;
         this.userId = userId;
         this.referredBy = referredBy;
-        this.status = ParticipationStatus.ACTIVE;
+        this.status = ParticipationStatus.PENDING;
         this.joinedAt = Instant.now();
     }
 
