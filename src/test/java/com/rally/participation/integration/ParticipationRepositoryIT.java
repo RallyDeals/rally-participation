@@ -47,7 +47,7 @@ class ParticipationRepositoryIT extends AbstractIntegrationTest {
         Participation rejoin = participationRepository.saveAndFlush(new Participation(dealId, userId, null));
 
         assertThat(rejoin.getId()).isNotNull();
-        assertThat(participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.ACTIVE)).isEqualTo(1);
+        assertThat(participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.PENDING)).isEqualTo(1);
         assertThat(participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.LEFT)).isEqualTo(1);
     }
 
@@ -60,8 +60,8 @@ class ParticipationRepositoryIT extends AbstractIntegrationTest {
         participationRepository.saveAndFlush(new Participation(dealA, userId, null));
         participationRepository.saveAndFlush(new Participation(dealB, userId, null));
 
-        assertThat(participationRepository.countByDealIdAndStatus(dealA, ParticipationStatus.ACTIVE)).isEqualTo(1);
-        assertThat(participationRepository.countByDealIdAndStatus(dealB, ParticipationStatus.ACTIVE)).isEqualTo(1);
+        assertThat(participationRepository.countByDealIdAndStatus(dealA, ParticipationStatus.PENDING)).isEqualTo(1);
+        assertThat(participationRepository.countByDealIdAndStatus(dealB, ParticipationStatus.PENDING)).isEqualTo(1);
     }
 
     @Test
@@ -70,6 +70,6 @@ class ParticipationRepositoryIT extends AbstractIntegrationTest {
         participationRepository.saveAndFlush(new Participation(dealId, UUID.randomUUID(), null));
         participationRepository.saveAndFlush(new Participation(dealId, UUID.randomUUID(), null));
 
-        assertThat(participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.ACTIVE)).isEqualTo(2);
+        assertThat(participationRepository.countByDealIdAndStatus(dealId, ParticipationStatus.PENDING)).isEqualTo(2);
     }
 }

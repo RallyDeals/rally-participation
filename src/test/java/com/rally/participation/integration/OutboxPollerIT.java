@@ -36,7 +36,7 @@ class OutboxPollerIT extends AbstractIntegrationTest {
     @Autowired
     private OutboxPoller outboxPoller;
 
-    @Value("${rally.kafka.topics.participant-joined}")
+    @Value("${rally.kafka.topics.participation}")
     private String participantJoinedTopic;
 
     private Consumer<String, String> consumer;
