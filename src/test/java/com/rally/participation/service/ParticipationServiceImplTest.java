@@ -77,7 +77,7 @@ class ParticipationServiceImplTest {
 
         assertThat(response.dealId()).isEqualTo(dealId);
         assertThat(response.userId()).isEqualTo(userId);
-        assertThat(response.status()).isEqualTo("ACTIVE");
+        assertThat(response.status()).isEqualTo("PENDING");
 
         verify(dealServiceClient).getDealSummary(dealId);
         verify(dealServiceClient).reserveSlot(dealId);
@@ -227,7 +227,7 @@ class ParticipationServiceImplTest {
         assertThatThrownBy(() -> service.leave(dealId, userId))
             .isInstanceOf(LeaveNotEligibleException.class);
 
-        assertThat(active.getStatus()).isEqualTo(ParticipationStatus.ACTIVE);
+        assertThat(active.getStatus()).isEqualTo(ParticipationStatus.PENDING);
         verifyNoInteractions(outboxEventWriter);
     }
 

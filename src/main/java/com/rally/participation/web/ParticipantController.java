@@ -20,7 +20,7 @@ public class ParticipantController {
     private final ParticipantService participantService;
 
     @GetMapping("/participations")
-    public MyParticipationsPageResponse getParticipantDeals(@RequestHeader("X-User-Id") UUID callerId,
+    public MyParticipationsPageResponse getParticipantDeals(@CurrentUser UUID callerId,
                                                             @RequestParam(required = false) ParticipationStatus status,
                                                             @RequestParam(defaultValue = "1") int page,
                                                             @RequestParam(defaultValue = "3") int size) {
