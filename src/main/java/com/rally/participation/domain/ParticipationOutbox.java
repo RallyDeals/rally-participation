@@ -10,6 +10,10 @@ import java.util.UUID;
  * participations insert/update that caused it, so publication survives crashes
  * between "DB commit" and "Kafka publish" (see docs §8.2).
  * A separate poller (OutboxPoller) reads unpublished rows and pushes them to Kafka.
+ *
+ * traceId/correlationId are captured from MDC at write time (see OutboxEventWriter) and
+ * let the poller re-parent its publish span back onto the trace that created the row
+ * (OBSERVABILITY_GUIDE.md §9-§10) instead of starting a disconnected new trace.
  */
 @Entity
 @Table(name = "participation_outbox")
@@ -28,6 +32,12 @@ public class ParticipationOutbox {
     @Column(name = "payload", nullable = false, columnDefinition = "TEXT")
     private String payload;
 
+    @Column(name = "trace_id", length = 32)
+    private String traceId;
+
+    @Column(name = "correlation_id")
+    private UUID correlationId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -38,10 +48,12 @@ public class ParticipationOutbox {
         // JPA
     }
 
-    public ParticipationOutbox(UUID aggregateId, String eventType, String payload) {
+    public ParticipationOutbox(UUID aggregateId, String eventType, String payload, String traceId, UUID correlationId) {
         this.aggregateId = aggregateId;
         this.eventType = eventType;
         this.payload = payload;
+        this.traceId = traceId;
+        this.correlationId = correlationId;
         this.createdAt = Instant.now();
     }
 
@@ -63,6 +75,14 @@ public class ParticipationOutbox {
 
     public String getPayload() {
         return payload;
+    }
+
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public UUID getCorrelationId() {
+        return correlationId;
     }
 
     public Instant getCreatedAt() {

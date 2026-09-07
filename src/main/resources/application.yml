@@ -37,6 +37,38 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      observation-enabled: true
+    template:
+      observation-enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_HEALTH_SHOW_DETAILS:always}
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+    baggage:
+      remote-fields: X-Correlation-Id
+      correlation:
+        fields: X-Correlation-Id
+      tag-fields: X-Correlation-Id
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+          transport: http
+
+loki:
+  url: ${LOKI_URL:http://localhost:3100/loki/api/v1/push}
+  enabled: ${LOKI_ENABLED:false}
 
 rally:
   deal-service:

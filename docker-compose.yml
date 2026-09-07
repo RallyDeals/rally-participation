@@ -33,5 +33,25 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
 
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: rally-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: rally-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - loki
+
 volumes:
   participation-pg-data:

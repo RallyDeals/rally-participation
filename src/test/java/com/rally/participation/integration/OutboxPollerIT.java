@@ -60,7 +60,7 @@ class OutboxPollerIT extends AbstractIntegrationTest {
     void publishesUnpublishedRowToKafkaAndMarksItPublished() {
         UUID aggregateId = UUID.randomUUID();
         String payloadJson = "{\"dealId\":\"" + aggregateId + "\",\"note\":\"outbox-it\"}";
-        outboxRepository.saveAndFlush(new ParticipationOutbox(aggregateId, EventType.PARTICIPANT_JOINED, payloadJson));
+        outboxRepository.saveAndFlush(new ParticipationOutbox(aggregateId, EventType.PARTICIPANT_JOINED, payloadJson, null, null));
 
         outboxPoller.publishPending();
 
@@ -77,7 +77,7 @@ class OutboxPollerIT extends AbstractIntegrationTest {
     void alreadyPublishedRowsAreNotRepublished() {
         UUID aggregateId = UUID.randomUUID();
         ParticipationOutbox row = outboxRepository.saveAndFlush(
-            new ParticipationOutbox(aggregateId, EventType.PARTICIPANT_JOINED, "{\"already\":\"published\"}"));
+            new ParticipationOutbox(aggregateId, EventType.PARTICIPANT_JOINED, "{\"already\":\"published\"}", null, null));
 
         outboxPoller.publishPending(); // publishes it once
         KafkaTestUtils.getSingleRecord(consumer, participantJoinedTopic, Duration.ofSeconds(15)); // drain it
