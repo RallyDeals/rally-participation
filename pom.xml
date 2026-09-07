@@ -153,6 +153,7 @@
     </dependencies>
 
     <build>
+        <finalName>participation-service</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

@@ -26,12 +26,50 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+
+      # IMPORTANT:
+      # Containers connect to Kafka using "kafka:9092"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+  participation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - maven_settings
+
+    container_name: participation-service
+
+    ports:
+      - "8086:8086"
+
+    environment:
+      SERVER_PORT: 8086
+
+      # Docker service name + internal PostgreSQL port
+      DB_HOST: participation-postgres
+      DB_PORT: 5432
+      DB_NAME: participation_db
+      DB_USER: participation
+      DB_PASSWORD: participation
+
+      # Docker service name + internal Kafka port
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+      # If your Deal Service runs on your HOST machine:
+      RALLY_DEAL_SERVICE_BASE_URL: http://host.docker.internal:8085
+
+    depends_on:
+      participation-postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
 
   loki:
     image: grafana/loki:2.9.8
@@ -55,3 +93,7 @@ services:
 
 volumes:
   participation-pg-data:
+
+secrets:
+  maven_settings:
+    file: ${USERPROFILE}/.m2/settings.xml
